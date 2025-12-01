@@ -16,9 +16,25 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Data Warehouse Dashboard Routes (Protected)
 Route::middleware(['web'])->prefix('dashboard')->group(function () {
-    Route::get('/sales-overview', [DwReportController::class, 'salesOverview'])->name('dashboard.sales-overview');
-    Route::get('/product-analysis', [DwReportController::class, 'productAnalysis'])->name('dashboard.product-analysis');
-    Route::get('/customer-geo', [DwReportController::class, 'customerGeo'])->name('dashboard.customer-geo');
+    // Q1: Market Basket Analysis
+    Route::get('/market-basket', [DwReportController::class, 'marketBasket'])->name('dashboard.market-basket');
+    
+    // Q2: Territory Discount vs Profit
+    Route::get('/territory-discount', [DwReportController::class, 'territoryDiscount'])->name('dashboard.territory-discount');
+    
+    // Q3: Customer Segmentation
+    Route::get('/customer-segmentation', [DwReportController::class, 'customerSegmentation'])->name('dashboard.customer-segmentation');
+    
+    // Q4: Salesperson Retention
+    Route::get('/salesperson-retention', [DwReportController::class, 'salespersonRetention'])->name('dashboard.salesperson-retention');
+    
+    // Q5: Inventory Turnover
+    Route::get('/inventory-turnover', [DwReportController::class, 'inventoryTurnover'])->name('dashboard.inventory-turnover');
+    
+    // Legacy routes (redirect to new routes)
+    Route::get('/sales-overview', [DwReportController::class, 'marketBasket']);
+    Route::get('/product-analysis', [DwReportController::class, 'inventoryTurnover']);
+    Route::get('/customer-geo', [DwReportController::class, 'customerSegmentation']);
     
     // Drill-down routes
     Route::get('/territory/{territoryId}', [DrillDownController::class, 'territoryDetails'])->name('dashboard.territory-drilldown');

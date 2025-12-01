@@ -143,6 +143,9 @@
                 <h3 class="text-2xl font-bold text-gray-800 mb-2 flex items-center">
                     <span class="bg-gradient-to-r from-green-500 to-teal-600 text-white w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg">2</span>
                     Territory Performance Analysis
+                    <span class="ml-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-md animate-pulse">
+                        ⚡ OLAP: Drill-Down
+                    </span>
                 </h3>
                 <p class="text-gray-600 leading-relaxed">
                     Discount vs profit margin per territory - klik untuk drill-down ke halaman detail.
