@@ -11,6 +11,7 @@ USE adventureworks_dwh;
 SELECT 
     p1.ProductID AS ProductA_ID,
     p1.Name AS ProductA_Name,
+    p1.ProductCategoryName AS ProductA_CategoryName,
     p2.ProductID AS ProductB_ID,
     p2.Name AS ProductB_Name,
     COUNT(DISTINCT f1.SalesOrderID) AS CooccurrenceOrders
@@ -157,40 +158,31 @@ LEFT JOIN DimSalesperson sp ON sco.SalespersonKey = sp.SalespersonKey
 GROUP BY sp.SalespersonKey, sp.SalesPersonID, sp.FirstName, sp.LastName
 ORDER BY RetentionRate DESC, TotalSales DESC;
 
--- QUESTION 5: Inventory turnover per category
-WITH UnitsSold AS (
+-- QUESTION 5: Inventory turnover per category (leveraging FactInventoryMonthly)
+WITH SalesByCategory AS (
     SELECT 
-        dp.ProductID, 
-        dp.ProductCategoryID, 
-        SUM(fs.OrderQty) AS UnitsSold
+        dp.ProductCategoryID,
+        dp.ProductCategoryName,
+        SUM(fs.OrderQty) AS TotalUnitsSold
     FROM FactSalesOrderLine fs
     JOIN DimProduct dp ON fs.ProductKey = dp.ProductKey
-    GROUP BY dp.ProductID, dp.ProductCategoryID
+    GROUP BY dp.ProductCategoryID, dp.ProductCategoryName
 ),
-InventorySnap AS (
-    SELECT 
-        pi.ProductID, 
-        AVG(pi.Quantity) AS AvgQtyOnHand
-    FROM adventureworks.productinventory pi
-    GROUP BY pi.ProductID
-),
-CategoryAgg AS (
+InventoryByCategory AS (
     SELECT
-        IFNULL(dp.ProductCategoryID, -1) AS ProductCategoryID,
-        SUM(us.UnitsSold) AS TotalUnitsSold,
-        SUM(IFNULL(iq.AvgQtyOnHand,0)) AS TotalAvgQtyOnHand
-    FROM UnitsSold us
-    LEFT JOIN InventorySnap iq ON us.ProductID = iq.ProductID
-    LEFT JOIN DimProduct dp ON us.ProductID = dp.ProductID
-    GROUP BY dp.ProductCategoryID
+        dp.ProductCategoryID,
+        dp.ProductCategoryName,
+        AVG(fim.EndingQuantity) AS AvgInventoryQty
+    FROM FactInventoryMonthly fim
+    JOIN DimProduct dp ON fim.ProductKey = dp.ProductKey
+    GROUP BY dp.ProductCategoryID, dp.ProductCategoryName
 )
 SELECT
-    ca.ProductCategoryID,
-    pc.Name AS CategoryName,
-    ca.TotalUnitsSold,
-    ca.TotalAvgQtyOnHand,
-    IF(ca.TotalAvgQtyOnHand > 0, ca.TotalUnitsSold / ca.TotalAvgQtyOnHand, NULL) AS InventoryTurnover
-FROM CategoryAgg ca
-LEFT JOIN adventureworks.productcategory pc ON ca.ProductCategoryID = pc.ProductCategoryID
+    sbc.ProductCategoryID,
+    COALESCE(sbc.ProductCategoryName, 'Uncategorized') AS CategoryName,
+    sbc.TotalUnitsSold,
+    ibc.AvgInventoryQty,
+    IF(ibc.AvgInventoryQty > 0, sbc.TotalUnitsSold / ibc.AvgInventoryQty, NULL) AS InventoryTurnover
+FROM SalesByCategory sbc
+LEFT JOIN InventoryByCategory ibc ON sbc.ProductCategoryID = ibc.ProductCategoryID
 ORDER BY InventoryTurnover DESC;
-

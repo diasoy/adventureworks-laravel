@@ -11,8 +11,12 @@
 
 @section('content')
     <div class="mb-8 fade-in">
+        <div class="flex items-center space-x-3 mb-2">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">Q1</span>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-800">Q5</span>
+        </div>
         <h2 class="text-4xl font-bold text-gray-800 mb-2">Product Analysis Dashboard</h2>
-        <p class="text-gray-600 font-medium">Deep dive ke performa produk & relasi pembelian</p>
+        <p class="text-gray-600 font-medium">Bundling opportunities (co-purchase) & inventory turnover per kategori</p>
     </div>
 
     <!-- Interactive Filters -->
@@ -136,7 +140,7 @@
                     </span>
                     Inventory Turnover by Category
                 </h3>
-                <p class="text-gray-600 leading-relaxed">Total units terjual per kategori - semakin tinggi semakin cepat rotasi stok</p>
+                <p class="text-gray-600 leading-relaxed">Rasio perputaran stok: Total Units Terjual dibagi rata-rata persediaan kategori</p>
             </div>
             <div class="bg-orange-50 px-4 py-2 rounded-lg">
                 <span class="text-orange-700 font-bold text-lg">{{ count($inventoryTurnover) }}</span>
@@ -149,7 +153,9 @@
                     <tr class="bg-gradient-to-r from-orange-600 to-red-600 text-white">
                         <th class="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider rounded-tl-lg">Category ID</th>
                         <th class="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider">Category Name</th>
-                        <th class="px-6 py-4 text-right text-sm font-bold uppercase tracking-wider rounded-tr-lg">Total Units Sold</th>
+                        <th class="px-6 py-4 text-right text-sm font-bold uppercase tracking-wider">Total Units Sold</th>
+                        <th class="px-6 py-4 text-right text-sm font-bold uppercase tracking-wider">Avg Inventory Qty</th>
+                        <th class="px-6 py-4 text-right text-sm font-bold uppercase tracking-wider rounded-tr-lg">Inventory Turnover</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -164,6 +170,13 @@
                             <td class="px-6 py-4 text-right">
                                 <span class="text-lg font-bold text-orange-600">{{ number_format($category->TotalUnitsSold) }}</span>
                                 <span class="text-xs text-gray-500 ml-1">units</span>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <span class="text-sm font-semibold text-gray-900">{{ number_format($category->AvgInventoryQty ?? 0, 2) }}</span>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <span class="text-lg font-bold text-orange-600">{{ number_format($category->InventoryTurnover ?? 0, 2) }}</span>
+                                <span class="text-xs text-gray-500 ml-1">x</span>
                             </td>
                         </tr>
                     @endforeach
@@ -186,8 +199,8 @@
         data: {
             labels: categoryData.map(c => c.CategoryName || 'Uncategorized'),
             datasets: [{
-                label: 'Total Units Sold',
-                data: categoryData.map(c => c.TotalUnitsSold),
+                label: 'Inventory Turnover (x)',
+                data: categoryData.map(c => c.InventoryTurnover ?? 0),
                 backgroundColor: ['rgba(249, 115, 22, 0.8)', 'rgba(234, 88, 12, 0.8)', 'rgba(194, 65, 12, 0.8)', 'rgba(251, 146, 60, 0.8)', 'rgba(253, 186, 116, 0.8)'],
                 borderColor: 'rgba(234, 88, 12, 1)',
                 borderWidth: 2,
@@ -198,10 +211,27 @@
             responsive: true,
             plugins: {
                 legend: { display: true, position: 'top', labels: { font: { size: 14, weight: 'bold' }, padding: 15 } },
-                tooltip: { backgroundColor: 'rgba(0, 0, 0, 0.8)', padding: 12, cornerRadius: 8 }
+                tooltip: { 
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)', 
+                    padding: 12, 
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(context) {
+                            return (context.dataset.label || 'Inventory Turnover') + ': ' + (context.parsed.y ?? 0).toFixed(2) + 'x';
+                        }
+                    }
+                }
             },
             scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.05)' } },
+                y: { 
+                    beginAtZero: true, 
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: {
+                        callback: function(value) {
+                            return Number(value).toFixed(1) + 'x';
+                        }
+                    }
+                },
                 x: { grid: { display: false } }
             }
         }

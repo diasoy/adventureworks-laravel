@@ -33,7 +33,11 @@ CREATE TABLE DimProduct (
     Size VARCHAR(50),
     Weight DECIMAL(8,2),
     ProductSubcategoryID INT NULL,
-    ProductCategoryID INT NULL
+    ProductCategoryID INT NULL,
+    ProductSubcategoryName VARCHAR(100),
+    ProductCategoryName VARCHAR(100),
+    INDEX IX_DimProduct_Subcategory (ProductSubcategoryID),
+    INDEX IX_DimProduct_Category (ProductCategoryID)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Dimension: Customer
@@ -88,6 +92,18 @@ CREATE TABLE FactSalesOrderLine (
     Profit DECIMAL(19,4),
     INDEX IX_Fact_OrderDate (OrderDateKey),
     INDEX IX_Fact_Product (ProductKey),
-    INDEX IX_Fact_Customer (CustomerKey)
+    INDEX IX_Fact_Customer (CustomerKey),
+    INDEX IX_Fact_Salesperson (SalespersonKey),
+    INDEX IX_Fact_Geography (GeographyKey)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Fact table: monthly inventory snapshot per product
+DROP TABLE IF EXISTS FactInventoryMonthly;
+CREATE TABLE FactInventoryMonthly (
+    InventoryFactID BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ProductKey INT NOT NULL,
+    DateKey INT NOT NULL,
+    EndingQuantity DECIMAL(18,2) NULL,
+    INDEX IX_Inventory_Product (ProductKey),
+    INDEX IX_Inventory_Date (DateKey)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

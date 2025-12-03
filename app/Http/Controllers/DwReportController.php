@@ -185,17 +185,36 @@ class DwReportController extends Controller
     // Q5: Inventory Turnover Analysis
     public function inventoryTurnover()
     {
-        $inventoryTurnover = Cache::remember('inventory_turnover', 600, function () {
+        $inventoryTurnover = Cache::remember('inventory_turnover_v2', 600, function () {
             return DB::connection('mysql_dwh')->select("
                 SELECT
-                    IFNULL(dp.ProductCategoryID, -1) AS ProductCategoryID,
-                    pc.Name AS CategoryName,
-                    SUM(fs.OrderQty) AS TotalUnitsSold
-                FROM FactSalesOrderLine fs
-                JOIN DimProduct dp ON fs.ProductKey = dp.ProductKey
-                LEFT JOIN adventureworks.productcategory pc ON dp.ProductCategoryID = pc.ProductCategoryID
-                GROUP BY dp.ProductCategoryID, pc.Name
-                ORDER BY TotalUnitsSold DESC
+                    COALESCE(sales.ProductCategoryID, -1) AS ProductCategoryID,
+                    COALESCE(sales.CategoryName, 'Uncategorized') AS CategoryName,
+                    sales.TotalUnitsSold,
+                    inventory.AvgInventoryQty,
+                    CASE 
+                        WHEN inventory.AvgInventoryQty > 0 THEN sales.TotalUnitsSold / inventory.AvgInventoryQty
+                        ELSE NULL
+                    END AS InventoryTurnover
+                FROM (
+                    SELECT 
+                        dp.ProductCategoryID,
+                        dp.ProductCategoryName AS CategoryName,
+                        SUM(fs.OrderQty) AS TotalUnitsSold
+                    FROM FactSalesOrderLine fs
+                    JOIN DimProduct dp ON fs.ProductKey = dp.ProductKey
+                    GROUP BY dp.ProductCategoryID, dp.ProductCategoryName
+                ) sales
+                LEFT JOIN (
+                    SELECT
+                        dp.ProductCategoryID,
+                        dp.ProductCategoryName AS CategoryName,
+                        AVG(fim.EndingQuantity) AS AvgInventoryQty
+                    FROM FactInventoryMonthly fim
+                    JOIN DimProduct dp ON fim.ProductKey = dp.ProductKey
+                    GROUP BY dp.ProductCategoryID, dp.ProductCategoryName
+                ) inventory ON sales.ProductCategoryID = inventory.ProductCategoryID
+                ORDER BY InventoryTurnover DESC, TotalUnitsSold DESC
             ");
         });
 
@@ -310,7 +329,7 @@ class DwReportController extends Controller
                     p1.ProductID AS ProductA_ID,
                     p1.Name AS ProductA_Name,
                     p1.ProductCategoryID AS ProductA_CategoryID,
-                    pc1.Name AS ProductA_CategoryName,
+                    p1.ProductCategoryName AS ProductA_CategoryName,
                     p2.ProductID AS ProductB_ID,
                     p2.Name AS ProductB_Name,
                     COUNT(DISTINCT f1.SalesOrderID) AS CooccurrenceOrders
@@ -320,25 +339,43 @@ class DwReportController extends Controller
                     AND f1.ProductKey < f2.ProductKey
                 INNER JOIN DimProduct p1 ON f1.ProductKey = p1.ProductKey
                 INNER JOIN DimProduct p2 ON f2.ProductKey = p2.ProductKey
-                LEFT JOIN adventureworks.productcategory pc1 ON p1.ProductCategoryID = pc1.ProductCategoryID
-                GROUP BY p1.ProductID, p1.Name, p1.ProductCategoryID, pc1.Name, p2.ProductID, p2.Name
+                GROUP BY p1.ProductID, p1.Name, p1.ProductCategoryID, p1.ProductCategoryName, p2.ProductID, p2.Name
                 HAVING CooccurrenceOrders >= 5
                 ORDER BY CooccurrenceOrders DESC
                 LIMIT 50
             ");
         });
 
-        $inventoryTurnover = Cache::remember('inventory_turnover', 600, function () {
+        $inventoryTurnover = Cache::remember('inventory_turnover_v2', 600, function () {
             return DB::connection('mysql_dwh')->select("
                 SELECT
-                    IFNULL(dp.ProductCategoryID, -1) AS ProductCategoryID,
-                    pc.Name AS CategoryName,
-                    SUM(fs.OrderQty) AS TotalUnitsSold
-                FROM FactSalesOrderLine fs
-                JOIN DimProduct dp ON fs.ProductKey = dp.ProductKey
-                LEFT JOIN adventureworks.productcategory pc ON dp.ProductCategoryID = pc.ProductCategoryID
-                GROUP BY dp.ProductCategoryID, pc.Name
-                ORDER BY TotalUnitsSold DESC
+                    COALESCE(sales.ProductCategoryID, -1) AS ProductCategoryID,
+                    COALESCE(sales.CategoryName, 'Uncategorized') AS CategoryName,
+                    sales.TotalUnitsSold,
+                    inventory.AvgInventoryQty,
+                    CASE 
+                        WHEN inventory.AvgInventoryQty > 0 THEN sales.TotalUnitsSold / inventory.AvgInventoryQty
+                        ELSE NULL
+                    END AS InventoryTurnover
+                FROM (
+                    SELECT 
+                        dp.ProductCategoryID,
+                        dp.ProductCategoryName AS CategoryName,
+                        SUM(fs.OrderQty) AS TotalUnitsSold
+                    FROM FactSalesOrderLine fs
+                    JOIN DimProduct dp ON fs.ProductKey = dp.ProductKey
+                    GROUP BY dp.ProductCategoryID, dp.ProductCategoryName
+                ) sales
+                LEFT JOIN (
+                    SELECT
+                        dp.ProductCategoryID,
+                        dp.ProductCategoryName AS CategoryName,
+                        AVG(fim.EndingQuantity) AS AvgInventoryQty
+                    FROM FactInventoryMonthly fim
+                    JOIN DimProduct dp ON fim.ProductKey = dp.ProductKey
+                    GROUP BY dp.ProductCategoryID, dp.ProductCategoryName
+                ) inventory ON sales.ProductCategoryID = inventory.ProductCategoryID
+                ORDER BY InventoryTurnover DESC, TotalUnitsSold DESC
             ");
         });
 

@@ -24,13 +24,15 @@ FROM (
     SELECT DueDate FROM adventureworks.salesorderheader
     UNION
     SELECT ShipDate FROM adventureworks.salesorderheader
+    UNION
+    SELECT LAST_DAY(ModifiedDate) AS OrderDate FROM adventureworks.productinventory
 ) d
 WHERE d.OrderDate IS NOT NULL;
 
 -- 2) Populate DimProduct
 TRUNCATE TABLE DimProduct;
 
-INSERT INTO DimProduct (ProductID, Name, ProductNumber, Color, StandardCost, ListPrice, Size, Weight, ProductSubcategoryID, ProductCategoryID)
+INSERT INTO DimProduct (ProductID, Name, ProductNumber, Color, StandardCost, ListPrice, Size, Weight, ProductSubcategoryID, ProductCategoryID, ProductSubcategoryName, ProductCategoryName)
 SELECT 
     p.ProductID, 
     p.Name, 
@@ -41,7 +43,9 @@ SELECT
     p.Size, 
     p.Weight, 
     p.ProductSubcategoryID, 
-    pc.ProductCategoryID
+    pc.ProductCategoryID,
+    ps.Name AS ProductSubcategoryName,
+    pc.Name AS ProductCategoryName
 FROM adventureworks.product p
 LEFT JOIN adventureworks.productsubcategory ps ON p.ProductSubcategoryID = ps.ProductSubcategoryID
 LEFT JOIN adventureworks.productcategory pc ON ps.ProductCategoryID = pc.ProductCategoryID;
@@ -98,3 +102,15 @@ LEFT JOIN DimCustomer dc ON dc.CustomerID = soh.CustomerID
 LEFT JOIN DimSalesperson ds ON ds.SalesPersonID = soh.SalesPersonID
 LEFT JOIN DimGeography dg ON dg.TerritoryID = soh.TerritoryID;
 
+-- 7) Populate FactInventoryMonthly (monthly aggregated inventory from source)
+TRUNCATE TABLE FactInventoryMonthly;
+
+INSERT INTO FactInventoryMonthly (ProductKey, DateKey, EndingQuantity)
+SELECT
+    dp.ProductKey,
+    DATE_FORMAT(LAST_DAY(pi.ModifiedDate), '%Y%m%d') AS DateKey,
+    AVG(pi.Quantity) AS EndingQuantity
+FROM adventureworks.productinventory pi
+LEFT JOIN DimProduct dp ON dp.ProductID = pi.ProductID
+WHERE dp.ProductKey IS NOT NULL
+GROUP BY dp.ProductKey, DATE_FORMAT(LAST_DAY(pi.ModifiedDate), '%Y%m%d');

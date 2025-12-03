@@ -114,6 +114,67 @@
             </table>
         </div>
 
+        
+
+        
+    </div>
+
+    <!-- Product Pair Co-occurrence (still Q1) -->
+    <div class="bg-white rounded-2xl shadow-xl p-8 filter-card fade-in hover:shadow-2xl mt-8">
+        <div class="flex items-start justify-between mb-6">
+            <div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-2">Top Product Pairs</h3>
+                <p class="text-gray-600 leading-relaxed">Pasangan produk yang paling sering muncul dalam satu order (basis paket bundling)</p>
+            </div>
+            <div class="bg-amber-50 px-4 py-2 rounded-lg">
+                <span class="text-amber-700 font-bold text-lg" id="pairCount">0</span>
+                <span class="text-amber-600 text-sm ml-1">pairs</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Kategori A</label>
+                <select id="pairCategoryFilter" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent transition">
+                    <option value="all">Semua Kategori</option>
+                    @foreach(collect($productPairs)->pluck('ProductA_CategoryID', 'ProductA_CategoryName')->unique() as $catName => $catId)
+                        <option value="{{ $catId }}">{{ $catName ?? 'Uncategorized' }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Min Co-purchase Orders</label>
+                <select id="pairMinOrders" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent transition">
+                    <option value="5">5+</option>
+                    <option value="10">10+</option>
+                    <option value="15">15+</option>
+                    <option value="20">20+</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Top N</label>
+                <select id="pairTopN" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent transition">
+                    <option value="10">Top 10</option>
+                    <option value="20" selected>Top 20</option>
+                    <option value="30">Top 30</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto bg-gray-50 rounded-xl p-2">
+            <table class="min-w-full">
+                <thead>
+                    <tr class="bg-gradient-to-r from-amber-500 to-orange-600 text-white">
+                        <th class="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider rounded-tl-lg">Product A</th>
+                        <th class="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider">Product B</th>
+                        <th class="px-6 py-4 text-right text-sm font-bold uppercase tracking-wider rounded-tr-lg">Co-Purchase Orders</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="pairTableBody">
+                </tbody>
+            </table>
+        </div>
+
         <div class="mt-8 bg-gray-50 rounded-xl p-6">
             <canvas id="bundlingChart" height="70"></canvas>
         </div>
@@ -143,6 +204,7 @@
 <script>
     const bundlingDataAll = @json($bundlingProducts);
     const bundlingDataYearly = @json($bundlingProductsYearly);
+    const pairDataAll = @json($productPairs);
 
     const bundlingChartCtx = document.getElementById('bundlingChart');
 
@@ -225,5 +287,55 @@
         document.getElementById('topNFilter').value = '15';
         applyFilters();
     }
+
+    // --- Product Pair rendering ---
+    function renderPairs() {
+        const category = document.getElementById('pairCategoryFilter').value;
+        const minOrders = parseInt(document.getElementById('pairMinOrders').value, 10);
+        const topN = parseInt(document.getElementById('pairTopN').value, 10);
+
+        let pairs = [...pairDataAll].filter(p => p.CooccurrenceOrders >= minOrders);
+        if (category !== 'all') {
+            pairs = pairs.filter(p => String(p.ProductA_CategoryID) === String(category));
+        }
+
+        pairs = pairs
+            .sort((a, b) => b.CooccurrenceOrders - a.CooccurrenceOrders)
+            .slice(0, topN);
+
+        const tbody = document.getElementById('pairTableBody');
+        tbody.innerHTML = pairs.map(pair => `
+            <tr class="hover:bg-amber-50 transition duration-200">
+                <td class="px-6 py-4">
+                    <div class="flex items-center">
+                        <span class="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-amber-100 text-amber-800 mr-2">${pair.ProductA_ID}</span>
+                        <div>
+                            <div class="text-sm font-semibold text-gray-900">${pair.ProductA_Name}</div>
+                            <div class="text-xs text-gray-500">${pair.ProductA_CategoryName || 'Uncategorized'}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-6 py-4">
+                    <div class="flex items-center">
+                        <span class="inline-flex items-center px-2 py-1 rounded text-xs font-bold bg-orange-100 text-orange-800 mr-2">${pair.ProductB_ID}</span>
+                        <span class="text-sm font-semibold text-gray-900">${pair.ProductB_Name}</span>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-right">
+                    <span class="text-lg font-bold text-orange-600">${pair.CooccurrenceOrders.toLocaleString()}</span>
+                    <span class="text-xs text-gray-500 ml-1">orders</span>
+                </td>
+            </tr>
+        `).join('') || `<tr><td colspan="3" class="px-6 py-4 text-sm text-gray-600">No pairs match the filters.</td></tr>`;
+
+        document.getElementById('pairCount').textContent = pairs.length;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderPairs();
+        document.getElementById('pairCategoryFilter').addEventListener('change', renderPairs);
+        document.getElementById('pairMinOrders').addEventListener('change', renderPairs);
+        document.getElementById('pairTopN').addEventListener('change', renderPairs);
+    });
 </script>
 @endpush

@@ -133,22 +133,6 @@
                         </div>
                     </div>
                 </a>
-
-                <!-- Divider -->
-                <div class="border-t border-white/10 my-4"></div>
-
-                <!-- Additional Menu -->
-                <div class="px-3 mb-2">
-                    <p class="text-xs font-bold text-white/50 uppercase tracking-wider">Quick Access</p>
-                </div>
-
-                <a href="{{ route('dashboard.market-basket') }}"
-                   class="flex items-center px-4 py-2.5 rounded-xl text-sm transition hover:bg-white/10">
-                    <svg class="w-4 h-4 mr-3 text-white/70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <span class="text-white/90 font-medium">Dashboard Overview</span>
-                </a>
             </nav>
 
             <!-- Footer - Fixed at bottom -->

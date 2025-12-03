@@ -45,6 +45,8 @@
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-2">📊 Sort By</label>
                 <select id="sortBy" class="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition">
+                    <option value="turnover_desc">Highest Inventory Turnover</option>
+                    <option value="turnover_asc">Lowest Inventory Turnover</option>
                     <option value="units_desc">Highest Units Sold</option>
                     <option value="units_asc">Lowest Units Sold</option>
                     <option value="name">Category Name (A-Z)</option>
@@ -67,7 +69,7 @@
             <div>
                 <h3 class="text-2xl font-bold text-gray-800 mb-2">Inventory Turnover by Category</h3>
                 <p class="text-gray-600 leading-relaxed">
-                    Total units terjual per kategori - semakin tinggi semakin cepat rotasi stok
+                    Rasio perputaran stok = Total Units Terjual / Rata-rata Persediaan (per kategori)
                 </p>
             </div>
             <div class="bg-pink-50 px-4 py-2 rounded-lg">
@@ -84,16 +86,22 @@
                         <th class="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider">Category ID</th>
                         <th class="px-6 py-4 text-left text-sm font-bold uppercase tracking-wider">Category Name</th>
                         <th class="px-6 py-4 text-right text-sm font-bold uppercase tracking-wider">Total Units Sold</th>
+                        <th class="px-6 py-4 text-right text-sm font-bold uppercase tracking-wider">Avg Inventory Qty</th>
+                        <th class="px-6 py-4 text-right text-sm font-bold uppercase tracking-wider">Inventory Turnover</th>
                         <th class="px-6 py-4 text-center text-sm font-bold uppercase tracking-wider rounded-tr-lg">Performance</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200" id="inventoryTableBody">
+                    @php
+                        $avgTurnover = collect($inventoryTurnover)
+                            ->filter(fn($c) => !is_null($c->InventoryTurnover))
+                            ->avg('InventoryTurnover') ?? 0;
+                    @endphp
                     @foreach($inventoryTurnover as $index => $category)
                         @php
-                            $totalUnits = $category->TotalUnitsSold;
-                            $avgUnits = collect($inventoryTurnover)->avg('TotalUnitsSold');
-                            $performance = $totalUnits > $avgUnits ? 'Fast Mover' : 'Slow Mover';
-                            $badgeColor = $totalUnits > $avgUnits ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800';
+                            $turnover = $category->InventoryTurnover ?? 0;
+                            $performance = $turnover >= $avgTurnover ? 'High Turnover' : 'Low Turnover';
+                            $badgeColor = $turnover >= $avgTurnover ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800';
                         @endphp
                         <tr class="hover:bg-pink-50 transition duration-200">
                             <td class="px-6 py-4">
@@ -117,6 +125,16 @@
                                     <span class="text-xs text-gray-500 ml-1">units</span>
                                 </div>
                             </td>
+                            <td class="px-6 py-4 text-right">
+                                <div class="flex items-center justify-end">
+                                    <span class="text-lg font-semibold text-gray-900">{{ number_format($category->AvgInventoryQty ?? 0, 2) }}</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <div class="flex items-center justify-end">
+                                    <span class="text-lg font-bold text-rose-600">{{ number_format($category->InventoryTurnover ?? 0, 2) }}</span>
+                                </div>
+                            </td>
                             <td class="px-6 py-4 text-center">
                                 <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold {{ $badgeColor }}">
                                     {{ $performance }}
@@ -137,13 +155,13 @@
         <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="bg-gradient-to-br from-pink-50 to-rose-50 p-6 rounded-xl border-2 border-pink-200">
                 <div class="text-3xl mb-2">🚀</div>
-                <div class="text-2xl font-bold text-pink-700 mb-1">{{ number_format(collect($inventoryTurnover)->max('TotalUnitsSold') ?? 0) }}</div>
-                <div class="text-sm text-gray-600 font-medium">Highest Category Sales</div>
+                <div class="text-2xl font-bold text-pink-700 mb-1">{{ number_format(collect($inventoryTurnover)->max('InventoryTurnover') ?? 0, 2) }}</div>
+                <div class="text-sm text-gray-600 font-medium">Highest Inventory Turnover</div>
             </div>
             <div class="bg-gradient-to-br from-pink-50 to-rose-50 p-6 rounded-xl border-2 border-pink-200">
                 <div class="text-3xl mb-2">📊</div>
-                <div class="text-2xl font-bold text-pink-700 mb-1">{{ number_format(collect($inventoryTurnover)->avg('TotalUnitsSold') ?? 0, 0) }}</div>
-                <div class="text-sm text-gray-600 font-medium">Average Units Per Category</div>
+                <div class="text-2xl font-bold text-pink-700 mb-1">{{ number_format(collect($inventoryTurnover)->avg('InventoryTurnover') ?? 0, 2) }}</div>
+                <div class="text-sm text-gray-600 font-medium">Average Turnover</div>
             </div>
             <div class="bg-gradient-to-br from-pink-50 to-rose-50 p-6 rounded-xl border-2 border-pink-200">
                 <div class="text-3xl mb-2">📦</div>
@@ -154,9 +172,11 @@
 
         <!-- Fast vs Slow Movers -->
         @php
-            $avgUnits = collect($inventoryTurnover)->avg('TotalUnitsSold');
-            $fastMovers = collect($inventoryTurnover)->filter(fn($c) => $c->TotalUnitsSold > $avgUnits);
-            $slowMovers = collect($inventoryTurnover)->filter(fn($c) => $c->TotalUnitsSold <= $avgUnits);
+            $avgTurnover = collect($inventoryTurnover)
+                ->filter(fn($c) => !is_null($c->InventoryTurnover))
+                ->avg('InventoryTurnover') ?? 0;
+            $fastMovers = collect($inventoryTurnover)->filter(fn($c) => ($c->InventoryTurnover ?? 0) > $avgTurnover);
+            $slowMovers = collect($inventoryTurnover)->filter(fn($c) => ($c->InventoryTurnover ?? 0) <= $avgTurnover);
         @endphp
         
         <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -170,7 +190,7 @@
                     @foreach($fastMovers->take(5) as $category)
                         <div class="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
                             <span class="text-sm font-semibold text-gray-800">{{ $category->CategoryName ?? 'Uncategorized' }}</span>
-                            <span class="text-sm font-bold text-green-600">{{ number_format($category->TotalUnitsSold) }} units</span>
+                            <span class="text-sm font-bold text-green-600">{{ number_format($category->InventoryTurnover ?? 0, 2) }}x</span>
                         </div>
                     @endforeach
                 </div>
@@ -186,7 +206,7 @@
                     @foreach($slowMovers->take(5) as $category)
                         <div class="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
                             <span class="text-sm font-semibold text-gray-800">{{ $category->CategoryName ?? 'Uncategorized' }}</span>
-                            <span class="text-sm font-bold text-orange-600">{{ number_format($category->TotalUnitsSold) }} units</span>
+                            <span class="text-sm font-bold text-orange-600">{{ number_format($category->InventoryTurnover ?? 0, 2) }}x</span>
                         </div>
                     @endforeach
                 </div>
@@ -227,8 +247,8 @@
         data: {
             labels: categoryData.map(c => c.CategoryName || 'Uncategorized'),
             datasets: [{
-                label: 'Total Units Sold',
-                data: categoryData.map(c => c.TotalUnitsSold),
+                label: 'Inventory Turnover (x)',
+                data: categoryData.map(c => c.InventoryTurnover ?? 0),
                 backgroundColor: [
                     'rgba(236, 72, 153, 0.8)',
                     'rgba(219, 39, 119, 0.8)',
@@ -256,7 +276,7 @@
                     cornerRadius: 8,
                     callbacks: {
                         label: function(context) {
-                            return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' units';
+                            return context.dataset.label + ': ' + (context.parsed.y ?? 0).toFixed(2) + 'x';
                         }
                     }
                 }
@@ -267,7 +287,7 @@
                     grid: { color: 'rgba(0, 0, 0, 0.05)' },
                     ticks: {
                         callback: function(value) {
-                            return value.toLocaleString();
+                            return Number(value).toFixed(1) + 'x';
                         }
                     }
                 },
@@ -291,7 +311,11 @@
         }
 
         // Sort
-        if (sortBy === 'units_desc') {
+        if (sortBy === 'turnover_desc') {
+            filteredData.sort((a, b) => (b.InventoryTurnover ?? 0) - (a.InventoryTurnover ?? 0));
+        } else if (sortBy === 'turnover_asc') {
+            filteredData.sort((a, b) => (a.InventoryTurnover ?? 0) - (b.InventoryTurnover ?? 0));
+        } else if (sortBy === 'units_desc') {
             filteredData.sort((a, b) => b.TotalUnitsSold - a.TotalUnitsSold);
         } else if (sortBy === 'units_asc') {
             filteredData.sort((a, b) => a.TotalUnitsSold - b.TotalUnitsSold);
@@ -306,11 +330,15 @@
 
     function updateTable() {
         const tbody = document.getElementById('inventoryTableBody');
-        const avgUnits = categoryData.reduce((sum, c) => sum + c.TotalUnitsSold, 0) / categoryData.length;
+        const validTurnover = categoryData.filter(c => c.InventoryTurnover !== null && c.InventoryTurnover !== undefined);
+        const avgTurnover = validTurnover.length
+            ? validTurnover.reduce((sum, c) => sum + c.InventoryTurnover, 0) / validTurnover.length
+            : 0;
 
         tbody.innerHTML = categoryData.map((category, index) => {
-            const performance = category.TotalUnitsSold > avgUnits ? 'Fast Mover' : 'Slow Mover';
-            const badgeColor = category.TotalUnitsSold > avgUnits ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800';
+            const turnover = category.InventoryTurnover ?? 0;
+            const performance = turnover >= avgTurnover ? 'High Turnover' : 'Low Turnover';
+            const badgeColor = turnover >= avgTurnover ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800';
 
             return `
                 <tr class="hover:bg-pink-50 transition duration-200">
@@ -335,6 +363,16 @@
                             <span class="text-xs text-gray-500 ml-1">units</span>
                         </div>
                     </td>
+                    <td class="px-6 py-4 text-right">
+                        <div class="flex items-center justify-end">
+                            <span class="text-lg font-semibold text-gray-900">${Number(category.AvgInventoryQty ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <div class="flex items-center justify-end">
+                            <span class="text-lg font-bold text-rose-600">${Number(turnover).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                    </td>
                     <td class="px-6 py-4 text-center">
                         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${badgeColor}">
                             ${performance}
@@ -349,14 +387,14 @@
 
     function updateChart() {
         categoryChart.data.labels = categoryData.map(c => c.CategoryName || 'Uncategorized');
-        categoryChart.data.datasets[0].data = categoryData.map(c => c.TotalUnitsSold);
+        categoryChart.data.datasets[0].data = categoryData.map(c => c.InventoryTurnover ?? 0);
         categoryChart.update();
     }
 
     function resetFilters() {
         document.getElementById('categoryFilter').value = 'all';
-        document.getElementById('sortBy').value = 'units_desc';
-        categoryData = [...categoryDataAll].sort((a, b) => b.TotalUnitsSold - a.TotalUnitsSold);
+        document.getElementById('sortBy').value = 'turnover_desc';
+        categoryData = [...categoryDataAll].sort((a, b) => (b.InventoryTurnover ?? 0) - (a.InventoryTurnover ?? 0));
         updateTable();
         updateChart();
     }

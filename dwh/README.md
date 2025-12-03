@@ -5,7 +5,7 @@ This folder contains MySQL scripts to create a small Data Warehouse (DW) schema 
 Files
 -----
 - `schema.sql` - creates database `adventureworks_dwh` and DW tables (dimensions + fact table).
-- `etl.sql` - ETL scripts to populate dimension tables and the fact table from `adventureworks` source database.
+- `etl.sql` - ETL scripts to populate dimension tables and the fact tables (sales + monthly inventory) from `adventureworks` source database.
 - `analytics_queries.sql` - Analytical queries that answer the 5 specified questions (market-basket, discounts vs profit by territory, frequency/segments, salesperson retention, inventory turnover).
 
 Notes
@@ -33,4 +33,3 @@ Next steps
 1. Run `schema.sql` to create the DW database and tables
 2. Run `etl.sql` to populate the DW from your adventureworks database
 3. Access the Laravel dashboard pages to view analytics
-
